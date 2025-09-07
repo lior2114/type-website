@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role_name == 'admin';
+    }
+    
+    // Helper function to check if user is moderator or admin
+    function isModeratorOrAdmin() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role_name in ['admin', 'moderator'];
+    }
+    
+    // Helper function to check if user is accessing their own data
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Helper function to check if user exists and is not banned
+    function isActiveUser() {
+      return request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_banned != true;
+    }
+
+    // Users collection - enhanced security
+    match /users/{userId} {
+      // Users can read their own data
+      allow read: if isOwner(userId);
+      
+      // Users can create their own profile during registration
+      allow create: if isOwner(userId) && 
+        request.resource.data.role_name == 'user' &&
+        request.resource.data.is_banned == false;
+      
+      // Users can update their own profile (but not role or ban status)
+      allow update: if isOwner(userId) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role_name', 'is_banned', 'ban_reason', 'ban_until', 'banned_by', 'banned_at']);
+      
+      // Admins can read, create, and update any user
+      allow read, create, update: if isAdmin();
+      
+      // Admins can delete users (except themselves)
+      allow delete: if isAdmin() && request.auth.uid != userId;
+    }
+    
+    // User stats subcollection - users can only access their own stats
+    match /users/{userId}/stats/{document} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+    
+    // User progress tracking
+    match /progress/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+    
+    // Lessons collection - public read, admin/moderator write
+    match /lessons/{lessonId} {
+      allow read: if true;
+      allow write: if isModeratorOrAdmin();
+    }
+    
+    // System settings - public read, admin only write
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Admin logs - admin only
+    match /admin_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // User sessions - users can access their own, admins can access all
+    match /sessions/{sessionId} {
+      allow read, write: if isOwner(resource.data.user_id) || isAdmin();
+      allow create: if isActiveUser();
+    }
+    
+    // Notifications - users can read their own, admins can manage all
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.user_id) || isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if isOwner(resource.data.user_id) || isAdmin();
+    }
+    
+    // Reports - users can create, admins can read all
+    match /reports/{reportId} {
+      allow create: if isActiveUser();
+      allow read, update, delete: if isAdmin();
+    }
+    
+    // Online battles - public read for leaderboard, users can create/update their own battles
+    match /onlineBattles/{battleId} {
+      // Anyone can read active battles for leaderboard
+      allow read: if true;
+      
+      // Users can create their own battles (including anonymous users)
+      allow create: if true;
+      
+      // Users can update their own battles, admins can update any
+      allow update: if isOwner(resource.data.userId) || isAdmin();
+      
+      // Only admins can delete battles
+      allow delete: if isAdmin();
+    }
+    
+    // Leaderboard - public read, users can create/update their own scores
+    match /leaderboard/{scoreId} {
+      // Anyone can read leaderboard
+      allow read: if true;
+      
+      // Users can create their own scores (including anonymous users)
+      allow create: if true;
+      
+      // Users can update their own scores, admins can update any
+      allow update: if isOwner(resource.data.userId) || isAdmin();
+      
+      // Only admins can delete scores
+      allow delete: if isAdmin();
+    }
+  }
+}

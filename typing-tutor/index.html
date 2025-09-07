@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/jpeg" href="/zscy.jpg"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Typing Tutor - מורה להקלדה עיוורת</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+      
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      /* Loading animation */
+      .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        color: white;
+        font-size: 1.5rem;
+        text-align: center;
+      }
+      
+      .loading::after {
+        content: '';
+        width: 20px;
+        height: 20px;
+        border: 2px solid white;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 10px;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="loading">טוען מורה להקלדה...</div>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
